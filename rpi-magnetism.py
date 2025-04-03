@@ -1,51 +1,44 @@
+import tkinter as tk
+from picamera import PiCamera
+from PIL import Image, ImageTk
 import time
-import pandas as pd
-from Adafruit_ADS1x15 import ADS1115
-import RPi.GPIO as GPIO
 
-# Setup
-adc = ADS1115()
-lcd_columns = 16  # Number of columns on LCD
-lcd_rows = 2  # Number of rows on LCD
+# Initialize camera
+camera = PiCamera()
+camera.resolution = (640, 480)  # Set camera resolution
 
+# Create main window
+window = tk.Tk()
+window.title("Camera Feed with Button")
 
-# You would need to add code here to initialize your LCD, for example:
-# lcd = some_lcd_library.LCD()
+# Create label for displaying the camera feed
+camera_label = tk.Label(window)
+camera_label.pack()
 
-# Function to read magnetism data from the Hall sensor
-def read_magnetism():
-    # Read a single value from the first channel (A0)
-    value = adc.read_adc(0, gain=1)  # Use the appropriate channel
-    return value
+# Function to update the camera feed in the GUI
+def update_camera_feed():
+    # Capture image from the camera
+    camera.capture('/home/pi/temp_image.jpg')  # Save the image temporarily
+    
+    # Open the captured image
+    img = Image.open('/home/pi/temp_image.jpg')
+    img = img.resize((640, 480))  # Resize the image to fit the window
+    img_tk = ImageTk.PhotoImage(img)
 
+    # Update the label with the new image
+    camera_label.img_tk = img_tk
+    camera_label.configure(image=img_tk)
 
-# Initialize a pandas DataFrame to store data
-data = pd.DataFrame(columns=["Timestamp", "Magnetism"])
+    # Call update_camera_feed again after 100ms to continuously update the feed
+    window.after(100, update_camera_feed)
 
+# Function to start the camera feed when the button is clicked
+def start_camera():
+    update_camera_feed()
 
-# Function to update the LCD display and store data
-def update_display_and_save():
-    magnetism_value = read_magnetism()
+# Create a button that starts the camera feed
+button = tk.Button(window, text="Start Camera", command=start_camera)
+button.pack()
 
-    # Display on LCD
-    # lcd.clear()  # Clear the screen
-    # lcd.message("Magnetism: {}".format(magnetism_value))
-    print(f"Magnetism: {magnetism_value}")  # Print to console for now
-
-    # Get current timestamp
-    timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
-
-    # Append data to DataFrame
-    data.loc[len(data)] = [timestamp, magnetism_value]
-
-    # Store data in CSV
-    data.to_csv('magnetism_data.csv', index=False)
-
-
-# Main loop
-try:
-    while True:
-        update_display_and_save()
-        time.sleep(1)  # Adjust the sleep time as necessary for your needs
-except KeyboardInterrupt:
-    print("Program terminated.")
+# Run the GUI loop
+window.mainloop()
